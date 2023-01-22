@@ -8,7 +8,6 @@ from firefly_iii_automation.exceptions import NoMatchingAccount
 from firefly_iii_automation.firefly import get_all_asset_accounts, create_new_transaction, \
     find_transaction_by_external_id
 from firefly_iii_automation.transactions_parsers import parse_bt_transaction_report
-from firefly_iii_automation.tui import FireflyTransactionsApp
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -17,7 +16,6 @@ app = typer.Typer()
 logger = logging.getLogger(__name__)
 
 
-@app.command()
 def parse_bt_report(path: Path):
     accounts = {
         account['attributes'].get('iban') or account['attributes'].get('name'): account
