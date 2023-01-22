@@ -54,7 +54,6 @@ class FireflyTransaction:
             apply_rules=False,
             error_if_duplicate_hash=False,
             fire_webhooks=True,
-            group_title="Split transaction title.",
             transactions=[
                 TransactionSplitStore(**spit_store_kwargs),
             ],

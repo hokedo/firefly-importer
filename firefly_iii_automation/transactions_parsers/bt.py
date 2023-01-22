@@ -14,6 +14,7 @@ CATEGORIES_STRINGS_MAPS = {
     "Cheltuieli": ["NETFLIX.COM", "SPLITWISE", "RCS AND RDS", "Amazon Video", "WWW.ORANGE.RO"]
 }
 
+
 def parse_bt_transaction_report(path):
     """
     :param Path path: Path to CSV report
@@ -37,8 +38,8 @@ def parse_bt_transaction_report(path):
         for row in csv_reader:
             transaction_reference = row['Referinta tranzactiei']
             original_description = row['Descriere']
-            debit = float(row['Debit']) if row['Debit'] else 0
-            credit = float(row['Credit']) if row['Credit'] else 0
+            debit = abs(float(row['Debit'])) if row['Debit'] else 0
+            credit = abs(float(row['Credit'])) if row['Credit'] else 0
 
             date_match = re.search(r';POS (\d{2}/\d{2}/\d{4}) ', original_description)
             if date_match:
@@ -63,7 +64,7 @@ def parse_bt_transaction_report(path):
                 date=date,
                 source_account=iban,
                 destination_account=destination,
-                amount=abs(debit or credit),
+                amount=debit or credit,
                 currency_code=currency_code,
                 category_name=category,
                 type=transaction_type,
