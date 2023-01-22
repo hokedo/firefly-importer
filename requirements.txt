@@ -1,3 +1,5 @@
 Firefly-III-API-Client==1.5.6
 typer==0.7.0
 python-dotenv==0.21.0
+textual==0.10.1
+textual-autocomplete==1.0.0b0
