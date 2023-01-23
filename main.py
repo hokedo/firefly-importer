@@ -7,6 +7,7 @@ import typer
 from firefly_iii_automation.exceptions import NoMatchingAccount
 from firefly_iii_automation.firefly import get_all_asset_accounts, create_new_transaction, \
     find_transaction_by_external_id
+from firefly_iii_automation.server import server
 from firefly_iii_automation.transactions_parsers import parse_bt_transaction_report
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -46,6 +47,4 @@ def parse_bt_report(path: Path):
 
 
 if __name__ == "__main__":
-    # app()
-    app = FireflyTransactionsApp()
-    app.run()
+    server.serve_forever()

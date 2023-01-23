@@ -11,7 +11,7 @@ interface DropdownProps {
 export const Dropdown = ({name, options, register}: DropdownProps) => {
     const label = capitalizeFirstLetter(name).replace('_', ' ');
     const dropdownOptions = Object.entries(options).map(
-        ([value, label]) => <option value={value}>{label}</option>);
+        ([value, label]) => <option key={value} value={value}>{label}</option>);
 
     return (
         <>

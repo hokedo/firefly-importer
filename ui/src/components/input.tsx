@@ -16,7 +16,7 @@ export const Input = ({name, register, type}: InputProps) => {
             </label>
             <input
                 {...register(name)}
-                type={!!type && type}
+                type={!!type ? type : null}
                 className='appearance-none block w-full bg-gray-200 text-gray-700 border border-red-500 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white'
             />
         </>
