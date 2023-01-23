@@ -12,12 +12,12 @@ class SimpleWebSocketServer(WebSocket):
         data = json.loads(self.data)
         file_obj = StringIO(data['content'])
 
-        result = [
+        results = [
             item.to_dict()
             for item in parse_bt_transaction_report(file_obj)
         ]
 
-        self.send_message(dumps({"result": result}))
+        self.send_message(dumps({"results": results}))
 
     def connected(self):
         print(self.address, 'connected')

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import useWebSocket, {ReadyState} from 'react-use-websocket';
 import TransactionForm from "./components/transaction-form";
 import {UploadFileInput} from "./components/upload-file-input";
@@ -6,19 +6,22 @@ import {UploadFileInput} from "./components/upload-file-input";
 const WS_URL = 'ws://127.0.0.1:8000';
 
 function App() {
-    const {sendJsonMessage, lastJsonMessage, readyState} = useWebSocket(WS_URL, {
+    const [index, setIndex] = useState(0);
+
+    const {sendJsonMessage, lastJsonMessage, readyState} = useWebSocket<{ results: any } | null>(WS_URL, {
         onOpen: () => {
             console.log('WebSocket connection established.');
         }
     });
 
-    const onSubmit = (data: any) => console.log(data);
+    const onSubmit = (data: any) => {
+        console.log(data)
+        setIndex(index + 1);
+    };
 
     const onFileUpload = (content: any) => {
         sendJsonMessage({content});
     };
-
-    console.log(lastJsonMessage);
 
     const connectionStatus = {
         [ReadyState.CONNECTING]: 'Connecting',
@@ -36,7 +39,7 @@ function App() {
                     The WebSocket is currently {connectionStatus}
                 </span>
                 <UploadFileInput name='upload-file' onUpload={onFileUpload} disabled={readyState !== ReadyState.OPEN}/>
-                <TransactionForm onSubmit={onSubmit}/>
+                <TransactionForm onSubmit={onSubmit} defaultValues={lastJsonMessage?.results[index]}/>
             </div>
         </div>
     );

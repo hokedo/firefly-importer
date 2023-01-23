@@ -2,6 +2,9 @@ import {useForm} from "react-hook-form";
 import {Input} from "./input";
 import {Dropdown} from "./dropdown";
 import {SearchInput} from "./search-input";
+import {TextArea} from "./textarea";
+import {useEffect} from "react";
+import {NumberInput} from "./number-input";
 
 const RON = 'RON';
 const EUR = 'EUR';
@@ -14,66 +17,85 @@ const TRANSFER_TYPES = {WITHDRAWAL, DEPOSIT, TRANSFER}
 
 interface TransactionFormProps {
     onSubmit: (formValues: any) => any
+    defaultValues?: {
+        [key: string]: any
+    }
 }
 
-const TransactionForm = ({onSubmit}: TransactionFormProps) => {
-    const {register, handleSubmit} = useForm();
+const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
+    if (defaultValues !== undefined) {
+        const parsedDate = new Date(defaultValues.date);
+        let month = parsedDate.getMonth() + 1
+        const strMonth = `${month < 10 ? '0' : ''}${month}`;
+        const day = parsedDate.getDate();
+        const strDay = `${day < 10 ? '0' : ''}${day}`;
+        defaultValues.date = `${parsedDate.getFullYear()}-${strMonth}-${strDay}`
+    }
+
+    const {register, handleSubmit, reset} = useForm({defaultValues});
+
+    useEffect(() => {
+        reset(defaultValues)
+    }, [defaultValues])
+
 
     return (
-        <>
-            <form onSubmit={handleSubmit(onSubmit)} className='w-full max-w-lg mt-2'>
-                <div className="flex flex-wrap -mx-3 mb-6">
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <Dropdown name={'transfer_type'} options={TRANSFER_TYPES} register={register}/>
-                    </div>
-
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <Input name='description' register={register}/>
-                    </div>
+        <form onSubmit={handleSubmit(onSubmit)} className='w-full max-w-lg mt-2'>
+            <div className="flex flex-wrap -mx-3 mb-6">
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <Dropdown name='type' options={TRANSFER_TYPES} register={register}/>
                 </div>
 
-                <div>
-                    <Input name='source_account' register={register}/>
-                    <Input name='destination_account' register={register}/>
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <Input name='description' register={register} required/>
                 </div>
-                <div className="flex flex-wrap -mx-3 mb-6">
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <Input name='date' type='date' register={register}/>
-                    </div>
+            </div>
 
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <SearchInput name='category' dataList={['test', 'category 2']} register={register}/>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap -mx-3 mb-6">
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <Input name='amount' type='number' register={register}/>
-
-                    </div>
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <Dropdown name='currency' options={CURRENCIES} register={register}/>
-                    </div>
-
+            <div>
+                <Input name='source_account' register={register}/>
+                <Input name='destination_account' register={register}/>
+            </div>
+            <div className="flex flex-wrap -mx-3 mb-6">
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <Input name='date' type='date' register={register}/>
                 </div>
 
-                <div className="flex flex-wrap -mx-3 mb-6">
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <Input name='foreign_amount' type='number' register={register}/>
-                    </div>
-                    <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                        <Dropdown name='foreign_currency' options={CURRENCIES} register={register}/>
-                    </div>
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <SearchInput name='category_name' dataList={['test', 'category 2']} register={register}/>
+                </div>
+            </div>
+
+            <div className="flex flex-wrap -mx-3 mb-6">
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <NumberInput name='amount' pattern='^\d*(\.\d{0,2})?$' register={register}/>
+
+                </div>
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <Dropdown name='currency' options={CURRENCIES} register={register}/>
                 </div>
 
-                <div className="flex justify-center mt-6 mx-auto">
-                    <input
-                        type="submit"
-                        className='flex-1 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline'
-                    />
+            </div>
+
+            <div className="flex flex-wrap -mx-3 mb-6">
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <NumberInput name='foreign_amount' pattern='^\d*(\.\d{0,2})?$' register={register}/>
                 </div>
-            </form>
-        </>
+                <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
+                    <Dropdown name='foreign_currency' options={CURRENCIES} register={register}/>
+                </div>
+            </div>
+
+            <div>
+                <TextArea name='notes' register={register}/>
+            </div>
+
+            <div className="flex justify-center mt-6 mx-auto">
+                <input
+                    type="submit"
+                    className='flex-1 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline'
+                />
+            </div>
+        </form>
     );
 
 }
