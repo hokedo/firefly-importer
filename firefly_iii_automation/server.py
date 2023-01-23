@@ -1,27 +1,23 @@
 import json
-import tempfile
-from pathlib import Path
+from io import StringIO
 
 from simple_websocket_server import WebSocket, WebSocketServer
 
 from firefly_iii_automation.transactions_parsers import parse_bt_transaction_report
+from firefly_iii_automation.utils.json import dumps
 
 
 class SimpleWebSocketServer(WebSocket):
     def handle(self):
         data = json.loads(self.data)
-        with tempfile.TemporaryDirectory() as tempdir:
-            tempdir = Path(tempdir)
-            temp_file = tempdir / 'file.csv'
-            with temp_file.open('w') as f:
-                f.write(data['content'])
+        file_obj = StringIO(data['content'])
 
         result = [
-            # item.to_dict()
-            # for item in parse_bt_transaction_report(temp_file)
+            item.to_dict()
+            for item in parse_bt_transaction_report(file_obj)
         ]
 
-        self.send_message(json.dumps({"result": result}))
+        self.send_message(dumps({"result": result}))
 
     def connected(self):
         print(self.address, 'connected')

@@ -1,7 +1,7 @@
 import csv
 import re
+import typing
 from datetime import datetime
-from pathlib import Path
 
 from ..exceptions import NoIBANException
 from ..models import FireflyTransaction, FireflyTransactionTypes
@@ -15,61 +15,60 @@ CATEGORIES_STRINGS_MAPS = {
 }
 
 
-def parse_bt_transaction_report(path):
+def parse_bt_transaction_report(file_obj: typing.TextIO):
     """
-    :param Path path: Path to CSV report
+    :param typing.TextIO file_obj: Opened File object
     :return:
     """
 
-    with path.open() as f:
-        # Skip first 16 lines
-        iban = None
-        for _ in range(16):
-            line = next(f)
+    # Skip first 16 lines
+    iban = None
+    for _ in range(16):
+        line = next(file_obj)
 
-            if 'numar cont' in line.lower():
-                iban, currency_code = line.split(",")[1].split(" ")
+        if 'numar cont' in line.lower():
+            iban, currency_code = line.split(",")[1].split(" ")
 
-        if not iban:
-            raise NoIBANException()
+    if not iban:
+        raise NoIBANException()
 
-        csv_reader = csv.DictReader(f)
+    csv_reader = csv.DictReader(file_obj)
 
-        for row in csv_reader:
-            transaction_reference = row['Referinta tranzactiei']
-            original_description = row['Descriere']
-            debit = abs(float(row['Debit'])) if row['Debit'] else 0
-            credit = abs(float(row['Credit'])) if row['Credit'] else 0
+    for row in csv_reader:
+        transaction_reference = row['Referinta tranzactiei']
+        original_description = row['Descriere']
+        debit = abs(float(row['Debit'])) if row['Debit'] else 0
+        credit = abs(float(row['Credit'])) if row['Credit'] else 0
 
-            date_match = re.search(r';POS (\d{2}/\d{2}/\d{4}) ', original_description)
-            if date_match:
-                # date when transaction got initiated
-                date = datetime.strptime(date_match.group(1), '%d/%m/%Y')
+        date_match = re.search(r';POS (\d{2}/\d{2}/\d{4}) ', original_description)
+        if date_match:
+            # date when transaction got initiated
+            date = datetime.strptime(date_match.group(1), '%d/%m/%Y')
 
-            else:
-                # this is actually the date when it got processed
-                date = datetime.strptime(row['Data tranzactie'], '%Y-%m-%d')
+        else:
+            # this is actually the date when it got processed
+            date = datetime.strptime(row['Data tranzactie'], '%Y-%m-%d')
 
-            description, category, destination = get_description_category_destination(
-                original_description,
-                debit,
-                credit
-            )
+        description, category, destination = get_description_category_destination(
+            original_description,
+            debit,
+            credit
+        )
 
-            transaction_type = get_transaction_type(original_description, debit, credit)
+        transaction_type = get_transaction_type(original_description, debit, credit)
 
-            yield FireflyTransaction(
-                external_id=transaction_reference,
-                description=description,
-                date=date,
-                source_account=iban,
-                destination_account=destination,
-                amount=debit or credit,
-                currency_code=currency_code,
-                category_name=category,
-                type=transaction_type,
-                notes=original_description
-            )
+        yield FireflyTransaction(
+            external_id=transaction_reference,
+            description=description,
+            date=date,
+            source_account=iban,
+            destination_account=destination,
+            amount=debit or credit,
+            currency_code=currency_code,
+            category_name=category,
+            type=transaction_type,
+            notes=original_description
+        )
 
 
 def get_transaction_type(bt_description, debit, credit):
