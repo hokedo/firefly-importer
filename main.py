@@ -22,7 +22,9 @@ def parse_bt_report(path: Path):
         account['attributes'].get('iban') or account['attributes'].get('name'): account
         for account in get_all_asset_accounts()
     }
-    transactions = parse_bt_transaction_report(path)
+
+    with path.open() as f:
+        transactions = parse_bt_transaction_report(f)
 
     for transaction in transactions:
         account = accounts.get(transaction.source_account)

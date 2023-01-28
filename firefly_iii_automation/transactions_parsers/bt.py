@@ -20,7 +20,7 @@ def parse_bt_transaction_report(file_obj: typing.TextIO):
     :param typing.TextIO file_obj: Opened File object
     :return:
     """
-
+    currency_code = 'RON'
     # Skip first 16 lines
     iban = None
     for _ in range(16):
@@ -57,12 +57,18 @@ def parse_bt_transaction_report(file_obj: typing.TextIO):
 
         transaction_type = get_transaction_type(original_description, debit, credit)
 
+        source_account = iban
+        destination_account = destination
+        if transaction_type is FireflyTransactionTypes.DEPOSIT:
+            source_account = destination
+            destination_account = iban
+
         yield FireflyTransaction(
             external_id=transaction_reference,
             description=description,
             date=date,
-            source_account=iban,
-            destination_account=destination,
+            source_account=source_account,
+            destination_account=destination_account,
             amount=debit or credit,
             currency_code=currency_code,
             category_name=category,

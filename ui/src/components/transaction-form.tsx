@@ -5,15 +5,17 @@ import {SearchInput} from "./search-input";
 import {TextArea} from "./textarea";
 import {useEffect} from "react";
 import {NumberInput} from "./number-input";
+import {WarningIcon} from "./icons";
 
 const RON = 'RON';
 const EUR = 'EUR';
 const CURRENCIES = {RON, EUR}
 
-const WITHDRAWAL = 'Withdrawal';
-const DEPOSIT = 'Deposit';
-const TRANSFER = 'Transfer';
-const TRANSFER_TYPES = {WITHDRAWAL, DEPOSIT, TRANSFER}
+const TRANSFER_TYPES = {
+    withdrawal: 'Withdrawal',
+    deposit: 'Deposit',
+    transfer: 'Transfer'
+}
 
 interface TransactionFormProps {
     onSubmit: (formValues: any) => any
@@ -22,8 +24,24 @@ interface TransactionFormProps {
     }
 }
 
+const FORM_DEFAULT_VALUES = {
+    "external_id": "",
+    "description": "",
+    "date": "",
+    "source_account": "",
+    "destination_account": "",
+    "amount": 0,
+    "type": "deposit",
+    "category_name": "",
+    "currency_code": "RON",
+    "foreign_amount": null,
+    "foreign_currency_code": null,
+    "notes": "",
+}
 const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
-    if (defaultValues !== undefined) {
+    if (defaultValues == null) {
+        defaultValues = FORM_DEFAULT_VALUES;
+    } else {
         const parsedDate = new Date(defaultValues.date);
         let month = parsedDate.getMonth() + 1
         const strMonth = `${month < 10 ? '0' : ''}${month}`;
@@ -35,9 +53,19 @@ const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
     const {register, handleSubmit, reset} = useForm({defaultValues});
 
     useEffect(() => {
-        reset(defaultValues)
+        if (defaultValues == null) {
+            reset(FORM_DEFAULT_VALUES);
+        } else {
+            reset(defaultValues)
+        }
+
     }, [defaultValues])
 
+
+    const isUnknownDestinationAccount = defaultValues?.destination_account != null &&
+        defaultValues?.destination_account.toLowerCase().includes('unknown');
+    const isUnknownSourceAccount = defaultValues?.source_account != null &&
+        defaultValues?.source_account.toLowerCase().includes('unknown');
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className='w-full max-w-lg mt-2'>
@@ -52,7 +80,9 @@ const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
             </div>
 
             <div>
+                {isUnknownSourceAccount ? <WarningIcon/> : null}
                 <Input name='source_account' register={register}/>
+                {isUnknownDestinationAccount ? <WarningIcon/> : null}
                 <Input name='destination_account' register={register}/>
             </div>
             <div className="flex flex-wrap -mx-3 mb-6">
@@ -71,7 +101,7 @@ const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
 
                 </div>
                 <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                    <Dropdown name='currency' options={CURRENCIES} register={register}/>
+                    <Dropdown name='currency_code' options={CURRENCIES} register={register}/>
                 </div>
 
             </div>
@@ -81,7 +111,7 @@ const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
                     <NumberInput name='foreign_amount' pattern='^\d*(\.\d{0,2})?$' register={register}/>
                 </div>
                 <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                    <Dropdown name='foreign_currency' options={CURRENCIES} register={register}/>
+                    <Dropdown name='foreign_currency_code' options={CURRENCIES} register={register}/>
                 </div>
             </div>
 

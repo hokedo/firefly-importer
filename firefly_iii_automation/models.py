@@ -4,6 +4,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Optional
 
+import maya
 from firefly_iii_client.model.transaction_split_store import TransactionSplitStore
 from firefly_iii_client.model.transaction_store import TransactionStore
 from firefly_iii_client.model.transaction_type_property import TransactionTypeProperty
@@ -63,3 +64,13 @@ class FireflyTransaction:
         clone = deepcopy(self)
         clone.type = clone.type.value
         return asdict(clone)
+
+    @classmethod
+    def from_dict(cls, dict):
+        dict_clone = deepcopy(dict)
+        dict_clone['type'] = FireflyTransactionTypes[dict_clone['type'].upper()]
+
+        instance = cls(**dict_clone)
+        if isinstance(instance.date, str):
+            instance.date = maya.parse(instance.date).datetime()
+        return instance

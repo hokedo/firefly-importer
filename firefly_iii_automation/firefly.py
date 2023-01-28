@@ -77,6 +77,7 @@ def create_new_transaction(transaction: FireflyTransaction):
                 f"Failed insertion of transaction with external id "
                 f"'{transaction.external_id}':\t{ex.body}\t{dumps(transaction.to_dict())}"
             )
+            raise ex
 
 
 def find_transaction_by_external_id(external_id):
