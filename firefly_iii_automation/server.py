@@ -7,7 +7,7 @@ import firefly_iii_client
 from simple_websocket_server import WebSocket, WebSocketServer
 
 from firefly_iii_automation.firefly import get_all_asset_accounts, find_transaction_by_external_id, \
-    create_new_transaction
+    create_new_transaction, get_all_accounts, get_all_categories, get_all_descriptions
 from firefly_iii_automation.models import FireflyTransaction, FireflyTransactionTypes
 from firefly_iii_automation.transactions_parsers import parse_bt_transaction_report
 from firefly_iii_automation.utils.json import dumps
@@ -60,20 +60,22 @@ class SimpleWebSocketServer(WebSocket):
                     else:
                         transaction.destination_account = '!!UNKNOWN!!'
 
-                message = f'Checking if transaction with external id exists:\t{transaction.external_id}'
-                logger.info(message)
-                self.send_json_message({'info': message})
+                logger.info(f'Checking if transaction with external id exists:\t{transaction.external_id}')
                 existing_transaction = find_transaction_by_external_id(transaction.external_id)
 
                 if existing_transaction:
                     logger.info(f"Transaction with external id {transaction.external_id} already exists!")
                 else:
                     transactions.append(transaction.to_dict())
-                    message = f"Transaction with external id {transaction.external_id} doesn't exist"
-                    logger.info(message)
-                    self.send_json_message({'info': message})
+                    logger.info(f"Transaction with external id {transaction.external_id} doesn't exist")
 
-            self.send_json_message({"transactions": transactions})
+            self.send_json_message({
+                "transactions": transactions,
+                "accounts": self.get_all_accounts_names(),
+                "descriptions": self.get_all_descriptions(),
+                "categories": self.get_all_categories_names(),
+            })
+
         except Exception as ex:
             message = str(ex)
             logger.exception(ex)
@@ -85,6 +87,18 @@ class SimpleWebSocketServer(WebSocket):
             account['attributes'].get('iban') or account['attributes'].get('name'): account
             for account in get_all_asset_accounts()
         }
+
+    @lru_cache()
+    def get_all_accounts_names(self):
+        return sorted([account['attributes']['name'] for account in get_all_accounts()])
+
+    @lru_cache()
+    def get_all_categories_names(self):
+        return sorted([category['attributes']['name'] for category in get_all_categories()])
+
+    @lru_cache()
+    def get_all_descriptions(self):
+        return sorted([description['name'] for description in get_all_descriptions()])
 
     def connected(self):
         print(self.address, 'connected')
@@ -99,5 +113,4 @@ class SimpleWebSocketServer(WebSocket):
 server = WebSocketServer('', 8000, SimpleWebSocketServer)
 
 if __name__ == "__main__":
-    server = WebSocketServer('', 8000, SimpleWebSocketServer)
     server.serve_forever()

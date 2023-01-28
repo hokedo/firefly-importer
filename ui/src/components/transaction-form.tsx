@@ -21,7 +21,10 @@ interface TransactionFormProps {
     onSubmit: (formValues: any) => any
     defaultValues?: {
         [key: string]: any
-    }
+    },
+    accounts?: string[];
+    categories?: string[];
+    descriptions?: string[];
 }
 
 const FORM_DEFAULT_VALUES = {
@@ -38,7 +41,7 @@ const FORM_DEFAULT_VALUES = {
     "foreign_currency_code": null,
     "notes": "",
 }
-const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
+const TransactionForm = ({onSubmit, defaultValues, accounts, categories, descriptions}: TransactionFormProps) => {
     if (defaultValues == null) {
         defaultValues = FORM_DEFAULT_VALUES;
     } else {
@@ -51,6 +54,9 @@ const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
     }
 
     const {register, handleSubmit, reset} = useForm({defaultValues});
+    const accountsNames = accounts != null ? accounts : [];
+    const categoryNames = categories != null ? categories : [];
+    descriptions = descriptions != null ? descriptions : [];
 
     useEffect(() => {
         if (defaultValues == null) {
@@ -75,15 +81,15 @@ const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
                 </div>
 
                 <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                    <Input name='description' register={register} required/>
+                    <SearchInput name='description' dataList={descriptions} register={register} required/>
                 </div>
             </div>
 
             <div>
                 {isUnknownSourceAccount ? <WarningIcon/> : null}
-                <Input name='source_account' register={register}/>
+                <SearchInput name='source_account' dataList={accountsNames} register={register}/>
                 {isUnknownDestinationAccount ? <WarningIcon/> : null}
-                <Input name='destination_account' register={register}/>
+                <SearchInput name='destination_account' dataList={accountsNames} register={register}/>
             </div>
             <div className="flex flex-wrap -mx-3 mb-6">
                 <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
@@ -91,7 +97,7 @@ const TransactionForm = ({onSubmit, defaultValues}: TransactionFormProps) => {
                 </div>
 
                 <div className='w-full md:w-1/2 px-3 mb-6 md:mb-0'>
-                    <SearchInput name='category_name' dataList={['test', 'category 2']} register={register}/>
+                    <SearchInput name='category_name' dataList={categoryNames} register={register}/>
                 </div>
             </div>
 

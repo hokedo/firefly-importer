@@ -3,6 +3,8 @@ from functools import lru_cache
 
 import firefly_iii_client
 from firefly_iii_client.api.accounts_api import AccountsApi
+from firefly_iii_client.api.autocomplete_api import AutocompleteApi
+from firefly_iii_client.api.categories_api import CategoriesApi
 from firefly_iii_client.api.search_api import SearchApi
 from firefly_iii_client.api.transactions_api import TransactionsApi
 
@@ -46,6 +48,25 @@ def get_all_accounts():
                 yield entry
 
 
+def get_all_categories():
+    logger.info("Fetching all categories page 1")
+    with create_api_client() as api_client:
+        categories_api = CategoriesApi(api_client)
+        response = categories_api.list_category()
+
+        for entry in response['data']:
+            yield entry
+
+        current_page = 1
+        total_pages = response['meta']['pagination']['total_pages']
+        while current_page < total_pages:
+            current_page += 1
+            logger.info(f"Fetching all categories page {current_page}")
+            response = categories_api.list_category(page=current_page)
+            for entry in response['data']:
+                yield entry
+
+
 def get_all_asset_accounts():
     logger.info("Fetching all asset accounts page 1")
     with create_api_client() as api_client:
@@ -63,6 +84,15 @@ def get_all_asset_accounts():
             response = accounts_api.list_account(page=current_page, type='asset')
             for entry in response['data']:
                 yield entry
+
+
+def get_all_descriptions():
+    logger.info("Fetching all descriptions")
+    with create_api_client() as api_client:
+        autocomplete_api = AutocompleteApi(api_client)
+        response = autocomplete_api.get_transactions_ac(limit=99999)
+        for entry in response.value:
+            yield entry
 
 
 def create_new_transaction(transaction: FireflyTransaction):
