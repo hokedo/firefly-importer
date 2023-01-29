@@ -1,7 +1,9 @@
 import asyncio
+import dataclasses
 import logging
 from typing import AsyncIterator
 
+import firefly_iii_client
 from aiocache import cached
 from aiofiles.tempfile import _temporary_directory
 from aiopath import AsyncPath
@@ -11,7 +13,8 @@ from anyio.streams.memory import MemoryObjectSendStream
 from h2o_wave import Q, main, app, ui
 
 from firefly_iii_automation.firefly._async import get_all_accounts, get_all_categories, \
-    get_all_descriptions as _get_all_descriptions, get_all_asset_accounts, find_transaction_by_external_id
+    get_all_descriptions as _get_all_descriptions, get_all_asset_accounts, find_transaction_by_external_id, \
+    create_new_transaction
 from firefly_iii_automation.models import FireflyTransactionTypes, FireflyTransaction
 from firefly_iii_automation.transactions_parsers import parse_bt_transaction_report
 
@@ -26,6 +29,8 @@ async def serve(q: Q):
     form_items = []
 
     if q.args.file_upload or q.client.transactions:
+        get_next_transaction = False
+
         if q.client.current_file is None:
             # File was uploaded just now
             q.client_temp_dir = await _temporary_directory()
@@ -42,12 +47,57 @@ async def serve(q: Q):
             q.client.accounts = accounts
             q.client.categories = categories
             q.client.descriptions = descriptions
+            get_next_transaction = True
+        else:
+            # Insert currently displayed transaction
+            transaction_dict = {}
+            for field in dataclasses.fields(FireflyTransaction):
+                transaction_dict[field.name] = q.args[field.name]
 
-        # Get the next transaction to show
-        q.client.current_transaction = await anext(q.client.transactions)
+            transaction_dict['external_id'] = q.client.current_transaction.external_id
+            transaction = FireflyTransaction.from_dict(transaction_dict)
+
+            try:
+                await create_new_transaction(transaction)
+                logger.info(f"Transaction with external id {transaction.external_id} successfully inserted")
+                get_next_transaction = True
+
+                # add account to autocomplete list if it's a new entry
+                if transaction.source_account not in q.client.accounts:
+                    q.client.accounts = sorted(q.client.accounts + [transaction.source_account])
+
+                if transaction.destination_account not in q.client.accounts:
+                    q.client.accounts = sorted(q.client.accounts + [transaction.destination_account])
+
+                # add categories to autocomplete list if it's a new entry
+                if transaction.category_name and transaction.category_name not in q.client.categories:
+                    q.client.categories = sorted(q.client.categories + [transaction.category_name])
+
+                # add descriptions to autocomplete list if it's a new entry
+                if transaction.description not in q.client.descriptions:
+                    q.client.descriptions = sorted(q.client.descriptions + [transaction.description])
+
+                form_items.append(ui.message_bar(type='success', text='Successfully inserted transaction!'))
+
+            except (Exception, firefly_iii_client.exceptions.ApiException) as ex:
+                logger.exception(ex)
+                logger.error('Failed to insert transaction!')
+                form_items.append(ui.message_bar(type='blocked', text='Failed to insert transaction!'))
+
+        if get_next_transaction:
+            try:
+                # Get the next transaction to show
+                q.client.current_transaction = await anext(q.client.transactions)
+            except Exception as ex:
+                # Processed all transactions.
+                # Reset the UI
+                q.client.transactions = None
+                q.client.current_transaction = None
+                q.client.current_file = None
+                q.client_temp_dir.close()
 
         # Hide the file upload input and show the transaction fields
-        form_items += await build_form_transaction_fields(q)
+        form_items += await build_form_transaction_fields(q.client.current_transaction, q)
     else:
         # Only show the file upload input
         form_items += [ui.file_upload(name='file_upload', label='File Upload', multiple=False, compact=True)]
@@ -63,42 +113,43 @@ async def serve(q: Q):
     await q.page.save()
 
 
-async def build_form_transaction_fields(q):
-    current_transaction = q.client.current_transaction  # type: FireflyTransaction
+async def build_form_transaction_fields(transaction: FireflyTransaction, q):
+    errors = await get_form_errors(transaction)
     return [
         ui.inline(items=[
             ui.combobox(name='type', label='Type', choices=['Withdrawal', 'Deposit', 'Transfer'], width='25%',
-                        required=True, value=current_transaction.type.value.capitalize()),
-            ui.combobox(name='description', label='Description', choices=q.client.descriptions, width='75%',
-                        required=True),
+                        required=True, value=transaction.type.value.capitalize()),
+            ui.combobox(name='description', label='Description', value=transaction.description,
+                        choices=q.client.descriptions, width='75%',
+                        required=True, error=errors.get('description')),
         ]),
         ui.inline(items=[
             ui.combobox(name='source_account', label='Source Account',
-                        choices=q.client.accounts, value=current_transaction.source_account,
-                        width='50%', required=True),
+                        choices=q.client.accounts, value=transaction.source_account,
+                        width='50%', required=True, error=errors.get('source_account')),
             ui.combobox(name='destination_account', label='Destination Account',
-                        choices=q.client.accounts, value=current_transaction.destination_account,
-                        width='50%', required=True),
+                        choices=q.client.accounts, value=transaction.destination_account,
+                        width='50%', required=True, error=errors.get('destination_account')),
         ]),
         ui.inline(items=[
-            ui.date_picker(name='date', label='Date', value=current_transaction.date.isoformat(), width="50%"),
+            ui.date_picker(name='date', label='Date', value=transaction.date.isoformat(), width="50%"),
             ui.combobox(name='category_name', label='Category Name',
-                        choices=q.client.categories, value=current_transaction.category_name,
+                        choices=q.client.categories, value=transaction.category_name,
                         width="50%")
         ]),
         ui.inline(items=[
-            ui.textbox(name='amount', label='Amount', width="50%", mask='99.99', value=str(current_transaction.amount),
-                       required=True),
+            ui.textbox(name='amount', label='Amount', width="50%", value=str(transaction.amount),
+                       required=True, error=errors.get('amount')),
             ui.combobox(name='currency_code', label='Currency',
-                        choices=CURRENCIES, width="50%", value=current_transaction.currency_code)
+                        choices=CURRENCIES, width="50%", value=transaction.currency_code)
         ]),
         ui.inline(items=[
             ui.textbox(name='foreign_amount', label='Foreign Amount',
-                       value=str(current_transaction.foreign_amount or ''), width="50%", mask='99.99'),
+                       value=str(transaction.foreign_amount or ''), width="50%", error=errors.get('foreign_amount')),
             ui.combobox(name='foreign_currency_code', label='Foreign Currency',
-                        choices=CURRENCIES, value=current_transaction.foreign_currency_code, width="50%")
+                        choices=CURRENCIES, value=transaction.foreign_currency_code, width="50%")
         ]),
-        ui.textbox(name='notes', label='notes', width="100%", multiline=True, value=current_transaction.notes),
+        ui.textbox(name='notes', label='notes', width="100%", multiline=True, value=transaction.notes),
     ]
 
 
@@ -171,3 +222,29 @@ async def filter_existing_transactions(file_location: str, send_stream: MemoryOb
             else:
                 await send_stream.send_nowait(transaction)
                 logger.info(f"Transaction with external id {transaction.external_id} doesn't exist")
+
+
+async def get_form_errors(transaction: FireflyTransaction):
+    errors = {}
+    if transaction.source_account and 'unknown' in transaction.source_account.lower():
+        errors['source_account'] = 'Unknown account!'
+
+    if transaction.destination_account and 'unknown' in transaction.destination_account.lower():
+        errors['destination_account'] = 'Unknown account!'
+
+    if not transaction.description:
+        errors['destination'] = 'Empty value not allowed!'
+
+    if transaction.amount:
+        try:
+            float(transaction.amount)
+        except:
+            errors['amount'] = 'Bad value!'
+
+    if transaction.foreign_amount:
+        try:
+            float(transaction.foreign_amount)
+        except:
+            errors['foreign_amount'] = 'Bad value!'
+
+    return errors
