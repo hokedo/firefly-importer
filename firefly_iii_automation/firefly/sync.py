@@ -8,9 +8,9 @@ from firefly_iii_client.api.categories_api import CategoriesApi
 from firefly_iii_client.api.search_api import SearchApi
 from firefly_iii_client.api.transactions_api import TransactionsApi
 
-from .env import FIREFLY_III_ACCESS_TOKEN, FIREFLY_III_HOST
-from .models import FireflyTransaction
-from .utils.json import dumps
+from ..env import FIREFLY_III_ACCESS_TOKEN, FIREFLY_III_HOST
+from ..models import FireflyTransaction
+from ..utils.json import dumps
 
 logger = logging.getLogger(__name__)
 

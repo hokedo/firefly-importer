@@ -3,6 +3,10 @@ import re
 import typing
 from datetime import datetime
 
+import aiocsv
+from aiopath import AsyncPath
+from anyio import AsyncFile
+
 from ..exceptions import NoIBANException
 from ..models import FireflyTransaction, FireflyTransactionTypes
 
@@ -15,7 +19,7 @@ CATEGORIES_STRINGS_MAPS = {
 }
 
 
-def parse_bt_transaction_report(file_obj: typing.TextIO):
+async def parse_bt_transaction_report(file_obj: AsyncFile):
     """
     :param typing.TextIO file_obj: Opened File object
     :return:
@@ -24,7 +28,7 @@ def parse_bt_transaction_report(file_obj: typing.TextIO):
     # Skip first 16 lines
     iban = None
     for _ in range(16):
-        line = next(file_obj)
+        line = await file_obj.readline()
 
         if 'numar cont' in line.lower():
             iban, currency_code = line.split(",")[1].split(" ")
@@ -32,9 +36,9 @@ def parse_bt_transaction_report(file_obj: typing.TextIO):
     if not iban:
         raise NoIBANException()
 
-    csv_reader = csv.DictReader(file_obj)
+    csv_reader = aiocsv.AsyncDictReader(file_obj)
 
-    for row in csv_reader:
+    async for row in csv_reader:
         transaction_reference = row['Referinta tranzactiei']
         original_description = row['Descriere']
         debit = abs(float(row['Debit'])) if row['Debit'] else 0
