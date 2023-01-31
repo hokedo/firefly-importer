@@ -49,7 +49,7 @@ class FireflyTransaction:
 
         if self.foreign_amount:
             spit_store_kwargs['foreign_amount'] = self.foreign_amount
-            spit_store_kwargs['foreign_currency_code'] = self.foreign_currency_code,
+            spit_store_kwargs['foreign_currency_code'] = self.foreign_currency_code
 
         return TransactionStore(
             apply_rules=False,
