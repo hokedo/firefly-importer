@@ -1,10 +1,8 @@
-import csv
 import re
 import typing
 from datetime import datetime
 
 import aiocsv
-from aiopath import AsyncPath
 from anyio import AsyncFile
 
 from ..exceptions import NoIBANException
@@ -12,10 +10,14 @@ from ..models import FireflyTransaction, FireflyTransactionTypes
 
 CATEGORIES_STRINGS_MAPS = {
     "Food": ["PayUtazz.ro", "GLOVO", "Glovo", "KFC KIOSC"],
-    "Transport": ["BOLT.EU", "UBER TRIP", "OMV", "EPinterregional.ro"],
+    "Transport": ["BOLT.EU", "UBER TRIP", "OMV", "EPinterregional.ro", "LIMRIDE", "ROMPETROL"],
     "Groceries": ["MEGAIMAGE", "GUSTINO", "LIDL", "SELGROS", "KAUFLAND"],
-    "Going out": ["COPACUL DE CAFEA", "BUSINESS BISTRO CAFE"],
-    "Cheltuieli": ["NETFLIX.COM", "SPLITWISE", "RCS AND RDS", "Amazon Video", "WWW.ORANGE.RO"]
+    "Going out": ["COPACUL DE CAFEA", "BUSINESS BISTRO CAFE", "ADA GIKU CAFE SRL", "PANEMAR", "KFC KIOSK"],
+    "Cheltuieli": [
+        "NETFLIX.COM", "SPLITWISE", "RCS AND RDS",
+        "Amazon Video", "WWW.ORANGE.RO", "ALLIANZ-TIRIAC ASIG.",
+        "WWW.EON.RO/MYLINE"
+    ]
 }
 
 
@@ -82,11 +84,11 @@ async def parse_bt_transaction_report(file_obj: AsyncFile):
 
 
 def get_transaction_type(bt_description, debit, credit):
-    if credit and not debit:
-        return FireflyTransactionTypes.DEPOSIT
-
     if 'Transfer intern - canal electronic' in bt_description:
         return FireflyTransactionTypes.TRANSFER
+
+    if credit and not debit:
+        return FireflyTransactionTypes.DEPOSIT
 
     return FireflyTransactionTypes.WITHDRAWAL
 
@@ -133,8 +135,45 @@ def get_description_category_destination(bt_description, debit, credit):
         if "uber" in found_string.lower():
             destination = 'Uber'
 
+        if description.lower() == 'Epinterregional.ro'.lower():
+            description = 'Bilet tren'
+
+        if 'LIMRIDE' == found_string:
+            description = destination = 'Lime'
+
+        if 'ROMPETROL' == found_string:
+            description = 'Carburant'
+            destination = 'Rompetrol'
+
     if category == "Going out":
         description = "Iesire"
+
+        if 'ADA GIKU CAFE SRL'.lower() in destination.lower():
+            description = 'Cafea Meron'
+            destination = 'Meron'
+
+        if 'PANEMAR' == found_string:
+            description = destination = 'Panemar'
+
+        if 'KFC KIOSK' == found_string:
+            description = destination = 'KFC'
+
+    if category == "Cheltuieli":
+        if 'ALLIANZ-TIRIAC ASIG.' == found_string:
+            currency = 'EUR' if re.search(r'\d+EUR RRN', bt_description) else 'RON'
+            description = f'Allianz-Tiriac Asigurare Investitie {currency}'
+            destination = 'Allianz-Tiriac'
+
+        if 'RCS AND RDS' == found_string:
+            description = destination = 'Digi'
+
+        if 'WWW.ORANGE.RO' == found_string:
+            description = 'Factura Orange'
+            destination = 'Orange'
+
+        if "WWW.EON.RO/MYLINE" == found_string:
+            description = 'Factura EON'
+            destination = 'EON'
 
     if not category:
         if 'Transfer din card' in bt_description:
