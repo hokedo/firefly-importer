@@ -48,7 +48,7 @@ async def serve(q: Q):
             q.client.categories = categories
             q.client.descriptions = descriptions
             get_next_transaction = True
-        else:
+        elif not q.args.skip_button:
             # Insert currently displayed transaction
             transaction_dict = {}
             for field in dataclasses.fields(FireflyTransaction):
@@ -83,6 +83,13 @@ async def serve(q: Q):
                 logger.exception(ex)
                 logger.error('Failed to insert transaction!')
                 form_items.append(ui.message_bar(type='blocked', text='Failed to insert transaction!'))
+
+        if q.args.skip_button:
+            form_items.append(ui.message_bar(
+                type='info',
+                text=f'Skipped transaction with id {q.client.current_transaction.external_id}'
+            ))
+            get_next_transaction = True
 
         if get_next_transaction:
             try:
@@ -155,6 +162,10 @@ async def build_form_transaction_fields(transaction: FireflyTransaction, q):
                         choices=CURRENCIES, value=transaction.foreign_currency_code, width="50%")
         ]),
         ui.textbox(name='notes', label='notes', width="100%", multiline=True, value=transaction.notes),
+        ui.buttons(
+            justify='center',
+            items=[ui.button(name='skip_button', label='Skip', width='100%', primary=False)]
+        ),
     ]
 
 
