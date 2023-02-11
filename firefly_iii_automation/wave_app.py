@@ -33,8 +33,8 @@ async def serve(q: Q):
 
         if q.client.current_file is None:
             # File was uploaded just now
-            q.client_temp_dir = await _temporary_directory()
-            q.client.current_file = await q.site.download(q.args.file_upload[0], q.client_temp_dir.name)
+            q.client.temp_dir = await _temporary_directory()
+            q.client.current_file = await q.site.download(q.args.file_upload[0], q.client.temp_dir.name)
             await q.site.unload(q.args.file_upload[0])
 
             q.client.transactions = parse_transactions(q.client.current_file)
@@ -88,17 +88,22 @@ async def serve(q: Q):
             try:
                 # Get the next transaction to show
                 q.client.current_transaction = await anext(q.client.transactions)
-            except Exception as ex:
+
+            except StopAsyncIteration as ex:
                 # Processed all transactions.
                 # Reset the UI
+                logger.info("Finished transactions")
                 q.client.transactions = None
                 q.client.current_transaction = None
                 q.client.current_file = None
-                q.client_temp_dir.close()
+                await q.client.temp_dir.close()
+                form_items.append(ui.message_bar(type='info', text='Finished processing transactions'))
 
-        # Hide the file upload input and show the transaction fields
-        form_items += await build_form_transaction_fields(q.client.current_transaction, q)
-    else:
+        if q.client.current_transaction:
+            # Hide the file upload input and show the transaction fields
+            form_items += await build_form_transaction_fields(q.client.current_transaction, q)
+
+    if not q.client.transactions:
         # Only show the file upload input
         form_items += [ui.file_upload(name='file_upload', label='File Upload', multiple=False, compact=True)]
 
@@ -222,6 +227,7 @@ async def filter_existing_transactions(file_location: str, send_stream: MemoryOb
             else:
                 await send_stream.send_nowait(transaction)
                 logger.info(f"Transaction with external id {transaction.external_id} doesn't exist")
+        await send_stream.aclose()
 
 
 async def get_form_errors(transaction: FireflyTransaction):
